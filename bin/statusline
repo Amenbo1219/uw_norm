@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""ステータスラインに「今どっちのClaudeか」を常時出す。
+
+普通のClaude Code(サブスク)とローカルモデルは画面上ほぼ同じに見えるため、
+接続先が 127.0.0.1:4000 (LiteLLM) のときは目立つ表示にして取り違えを防ぐ。
+起動時だけ分かるエイリアスと違い、後からそのウィンドウを見ても判別できる。
+
+stdin に Claude Code がセッション情報のJSONを渡してくる。
+"""
+import json
+import os
+import subprocess
+import sys
+
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    d = {}
+
+model = (d.get("model") or {}).get("display_name") or (d.get("model") or {}).get("id") or "?"
+cwd = (d.get("workspace") or {}).get("current_dir") or d.get("cwd") or os.getcwd()
+base = os.environ.get("ANTHROPIC_BASE_URL", "")
+
+try:
+    branch = subprocess.run(
+        ["git", "-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True, text=True, timeout=2,
+    ).stdout.strip()
+except Exception:
+    branch = ""
+
+RED, DIM, RESET = "\033[1;31m", "\033[2m", "\033[0m"
+
+if base:
+    host = base.split("//", 1)[-1]
+    head = f"{RED}◆ LOCAL{RESET} {model} {DIM}@{host}{RESET}"
+else:
+    head = f"{DIM}Claude (subscription){RESET}"
+
+parts = [head, os.path.basename(cwd) or cwd]
+if branch:
+    parts.append(f"{DIM}{branch}{RESET}")
+print(" · ".join(parts))

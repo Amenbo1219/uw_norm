@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Obsidian vault への stdio MCP ブリッジ。
+#
+# vault の実体は p40 サーバ上に rclone mount された Nextcloud のフォルダで、
+# それを bind mount している kb-mcpo-obsidian コンテナの中でだけ /vault として
+# 見える。ホスト側に Node は無いので、コンテナ内の node/npx をそのまま借りる。
+#
+#   サーバ内で実行 : docker exec -i <container> npx obsidian-mcp
+#   手元のマシン   : ssh <host> docker exec -i <container> npx obsidian-mcp
+#                    (KABEUCHI_SSH_HOST を設定した場合。モデル用のSSHトンネルと
+#                     同じホスト名を指定すればよい)
+#
+# 注意: mcpo 経由(Open WebUI 用の :8001)とは別経路。ここは MCP のまま喋る。
+set -euo pipefail
+
+CONTAINER="${KABEUCHI_OBSIDIAN_CONTAINER:-kb-mcpo-obsidian}"
+VAULT="${KABEUCHI_VAULT_SPEC:-notes=/vault}"
+
+# obsidian-mcp はコンテナ起動時に npx で取得済みなのでキャッシュが温まっている。
+cmd=(docker exec -i "$CONTAINER" npx -y obsidian-mcp@2 serve --vault "$VAULT")
+
+if [ -n "${KABEUCHI_SSH_HOST:-}" ]; then
+  exec ssh "$KABEUCHI_SSH_HOST" "${cmd[@]}"
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "obsidian-mcp: docker が無い。手元のマシンからなら KABEUCHI_SSH_HOST=p40 を設定する。" >&2
+  exit 1
+fi
+
+if ! docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null | grep -q true; then
+  echo "obsidian-mcp: コンテナ $CONTAINER が起動していない。" >&2
+  echo "  cd ~/kabeuchi-llm && mountpoint obsidian-vault && docker compose up -d mcpo-obsidian" >&2
+  exit 1
+fi
+
+exec "${cmd[@]}"

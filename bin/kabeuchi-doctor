@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# 「エージェントが動かない」ときに上から順に切り分ける。
+# 手元のマシンから使う場合は先に `ssh p40`(トンネル)を張っておくこと。
+set -uo pipefail
+
+BASE="${ANTHROPIC_BASE_URL:-http://127.0.0.1:4000}"
+MODEL="${ANTHROPIC_MODEL:-local-kabeuchi}"
+KEY="$(cat "${KABEUCHI_KEY_FILE:-$HOME/.config/kabeuchi/litellm-key}" 2>/dev/null \
+      || sed -n 's/^LITELLM_MASTER_KEY=//p' "$HOME/kabeuchi-llm/.env" 2>/dev/null)"
+
+ok=0
+step() { printf '\n== %s\n' "$1"; }
+fail() { printf '   NG: %s\n' "$1"; ok=1; }
+
+step "1. APIキー"
+if [ -z "$KEY" ]; then
+  fail "キーが見つからない。~/.config/kabeuchi/litellm-key に LITELLM_MASTER_KEY を書く:
+       mkdir -p ~/.config/kabeuchi && printf '%s' '<KEY>' > ~/.config/kabeuchi/litellm-key && chmod 600 ~/.config/kabeuchi/litellm-key"
+else
+  echo "   OK (${#KEY} 文字)"
+fi
+
+step "2. LiteLLM ($BASE) にモデルが見えるか"
+models="$(curl -s -m 10 -H "Authorization: Bearer $KEY" "$BASE/v1/models")"
+if printf '%s' "$models" | grep -q "\"$MODEL\""; then
+  echo "   OK ($MODEL)"
+else
+  fail "$MODEL が一覧に無い。応答: $(printf '%s' "$models" | head -c 200)
+       トンネル未確立(手元のマシン)か、kb-litellm が落ちている可能性。"
+fi
+
+step "3. Anthropic形式 (/v1/messages) で応答するか"
+resp="$(curl -s -m 120 "$BASE/v1/messages" \
+  -H "x-api-key: $KEY" -H 'content-type: application/json' \
+  -H 'anthropic-version: 2023-06-01' \
+  -d "{\"model\":\"$MODEL\",\"max_tokens\":600,\"messages\":[{\"role\":\"user\",\"content\":\"say OK\"}]}")"
+if printf '%s' "$resp" | grep -q '"type":"text"'; then
+  echo "   OK"
+else
+  fail "本文が返らない。応答: $(printf '%s' "$resp" | head -c 300)
+       content が空なら max_tokens 不足(gemma は思考部を先に吐く)を疑う。"
+fi
+
+step "4. Obsidian MCP"
+probe='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"doctor","version":"0"}}}'
+if printf '%s\n' "$probe" | timeout 90 "$(dirname "$0")/obsidian-mcp" 2>/dev/null | grep -q obsidian-mcp-server; then
+  echo "   OK"
+else
+  fail "MCP が応答しない。サーバ側で vault のマウントを確認する:
+       systemctl --user status rclone-obsidian.service
+       mountpoint ~/kabeuchi-llm/obsidian-vault"
+fi
+
+printf '\n'
+exit "$ok"

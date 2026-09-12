@@ -1,0 +1,14 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "sh -c 'd=${CLAUDE_PROJECT_DIR:-.}; exec \"$d/bin/statusline\"'"
+  },
+  "enableAllProjectMcpServers": true,
+  "permissions": {
+    "allow": [
+      "mcp__obsidian__obsidian_list_vaults",
+      "mcp__obsidian__obsidian_search_vault",
+      "mcp__obsidian__obsidian_read_note"
+    ]
+  }
+}

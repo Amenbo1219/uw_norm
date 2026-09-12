@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# ローカルモデル(p40 の LiteLLM 経由 local-kabeuchi)で Claude Code を起動する。
+#
+# 環境変数を `.claude/settings.json` や `export` で常設しないのは、
+# **普通の Claude Code(サブスク) と取り違えないため**。ここを打ったときだけ
+# ローカルに向く。素の `claude` はこのディレクトリでも従来どおりサブスクで動く。
+# (起動後の見分けは statusline の赤い ◆ LOCAL 表示で付く)
+#
+#   ./bin/claude-local              対話
+#   ./bin/claude-local -p "..."     ヘッドレス
+#   ./bin/claude-local --resume     再開
+#
+# 引数はそのまま claude に渡る。
+set -euo pipefail
+
+key="$(cat "${KABEUCHI_KEY_FILE:-$HOME/.config/kabeuchi/litellm-key}" 2>/dev/null \
+     || sed -n 's/^LITELLM_MASTER_KEY=//p' "$HOME/kabeuchi-llm/.env" 2>/dev/null || true)"
+
+if [ -z "$key" ]; then
+  cat >&2 <<'MSG'
+claude-local: LITELLM_MASTER_KEY が見つからない。
+  サーバー内なら ~/kabeuchi-llm/.env から読む。手元のマシンなら一度だけ:
+    mkdir -p ~/.config/kabeuchi
+    printf '%s' '<LITELLM_MASTER_KEY の値>' > ~/.config/kabeuchi/litellm-key
+    chmod 600 ~/.config/kabeuchi/litellm-key
+MSG
+  exit 1
+fi
+
+# ANTHROPIC_MODEL だけでなく Haiku 系も差し替える。Claude Code は補助的な処理を
+# 小型モデルに投げるが、LiteLLM 側の Claude 系は ANTHROPIC_API_KEY が
+# プレースホルダのままなので、指定しないとそこで 401 になる。
+#
+# CLAUDE_CODE_MAX_CONTEXT_TOKENS は llama.cpp の -c (.env の CTX_SIZE) と揃える。
+# Claude Code は未知のモデル名に既定で 200k を仮定するため、指定しないと
+# auto-compact が効かず窓を超える。
+exec env \
+  ANTHROPIC_BASE_URL="${KABEUCHI_BASE_URL:-http://127.0.0.1:4000}" \
+  ANTHROPIC_AUTH_TOKEN="$key" \
+  ANTHROPIC_MODEL="${KABEUCHI_MODEL:-local-kabeuchi}" \
+  ANTHROPIC_DEFAULT_HAIKU_MODEL="${KABEUCHI_MODEL:-local-kabeuchi}" \
+  ANTHROPIC_SMALL_FAST_MODEL="${KABEUCHI_MODEL:-local-kabeuchi}" \
+  CLAUDE_CODE_MAX_CONTEXT_TOKENS="${KABEUCHI_CTX:-65536}" \
+  CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
+  claude "$@"
