@@ -1,3 +1,20 @@
 .claude/settings.local.json
 .env
 *.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+
+# uwnorm working directories and artefacts
+/in/
+/out/
+/cache/
+*.analysis.json
+*.report.html
+*.report.png

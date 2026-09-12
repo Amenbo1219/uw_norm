@@ -1,0 +1,42 @@
+# GPU image (section 7, N-05).
+#
+# Adds torch/CUDA for the gain application and an ffmpeg built against NVDEC /
+# NVENC.  Much larger than the CPU image; the 1.5 GB target does not apply.
+FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
+
+ARG UID=1000
+ARG GID=1000
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3.11 python3.11-venv python3-pip \
+        ffmpeg libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3.11 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+
+# CUDA 12.1 wheels run fine on a CUDA 12.4 runtime (minor-version compatible).
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu121
+
+WORKDIR /app
+COPY pyproject.toml README.md ./
+COPY uwnorm ./uwnorm
+RUN pip install --no-cache-dir . \
+    && python -c "import uwnorm, av, torch; print(uwnorm.__version__, torch.__version__)"
+
+ENV MPLCONFIGDIR=/tmp/mpl \
+    PYTHONUNBUFFERED=1
+
+RUN groupadd -g ${GID} uwnorm 2>/dev/null || true \
+    && useradd -m -u ${UID} -g ${GID} uwnorm 2>/dev/null || true \
+    && mkdir -p /work/in /work/out /work/cache \
+    && chown -R ${UID}:${GID} /work
+
+USER ${UID}:${GID}
+VOLUME ["/work/in", "/work/out", "/work/cache"]
+WORKDIR /work
+
+ENTRYPOINT ["uwnorm"]
+CMD ["--help"]

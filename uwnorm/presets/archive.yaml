@@ -1,0 +1,15 @@
+# Master for further grading in DaVinci / Premiere.
+# Nothing is baked in that a colourist would want to undo: gentle corrections,
+# 10-bit 4:2:2 ProRes so the gains do not quantise, no denoise.
+description: "ProRes 422 10-bit master for downstream grading"
+
+exposure-mode: deflicker
+exposure-tau: 1.5
+max-exposure-gain: 1.5
+wb-method: shades-of-gray
+wb-mode: drift
+wb-tau: 3.0
+max-wb-gain: 3.0
+profile: archive
+denoise: "off"
+soft-clip-knee: 0.9        # leave as much highlight detail as possible

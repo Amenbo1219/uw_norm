@@ -1,0 +1,23 @@
+# Deep blue water, 20 m and below, no artificial light.
+# Red is almost entirely absorbed, so scaling it up amplifies mostly noise.
+# Ancuti red compensation borrows from green instead, and the WB is allowed to
+# follow the depth because the attenuation changes as the dive does.
+description: "20 m+ ambient light: starved red channel, strong blue-green cast"
+
+exposure-mode: deflicker
+exposure-tau: 2.0          # less surface flicker down here; mostly slow drift
+max-exposure-gain: 1.5
+
+wb-method: shades-of-gray
+wb-p: 6.0                  # a higher order resists the overwhelming blue average
+wb-mode: drift
+wb-tau: 4.0
+max-wb-gain: 3.0
+red-compensation: 1.0      # there is no red left to simply multiply
+
+cut-threshold: 0.35
+soft-clip-knee: 0.85
+chroma: "422"              # strong red gain on 4:2:0 chroma smears (P-4)
+encoder: x264
+crf: 16
+denoise: hqdn3d            # the gains above will lift the noise floor
