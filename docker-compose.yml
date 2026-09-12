@@ -1,0 +1,39 @@
+services:
+  uwnorm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: "${UID:-1000}"
+        GID: "${GID:-1000}"
+    image: uwnorm:latest
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./in:/work/in:ro
+      - ./out:/work/out
+      - ./cache:/work/cache
+    working_dir: /work
+    command: ["--help"]
+
+  uwnorm-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+      args:
+        UID: "${UID:-1000}"
+        GID: "${GID:-1000}"
+    image: uwnorm:gpu
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./in:/work/in:ro
+      - ./out:/work/out
+      - ./cache:/work/cache
+    working_dir: /work
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ["--help"]

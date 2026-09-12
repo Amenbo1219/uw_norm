@@ -1,0 +1,20 @@
+# Shallow reef, 0-10 m, plenty of daylight.
+# Red still exists at this depth, so the WB gains stay modest and the auto
+# exposure hunts fast as the surface ripples move the light around.
+description: "0-10 m daylight reef: fast AE hunting, moderate colour cast"
+
+exposure-mode: deflicker
+exposure-tau: 1.2          # surface caustics flicker quickly
+max-exposure-gain: 1.5
+
+wb-method: shades-of-gray
+wb-p: 5.0
+wb-mode: drift
+wb-tau: 2.5
+max-wb-gain: 2.2           # red is not starved yet; a big gain would be noise
+red-compensation: 0.0
+
+cut-threshold: 0.35
+soft-clip-knee: 0.82       # sunbeams clip often - keep the shoulder gentle
+encoder: x264
+crf: 16

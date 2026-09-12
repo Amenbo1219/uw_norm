@@ -1,0 +1,23 @@
+# Cave / wreck interior lit by dive lights.
+# The lights are a fixed illuminant, so the white balance should NOT chase the
+# scene; it is locked to one point.  The hotspot in the middle of the beam is
+# excluded from the statistics, or it would drag every estimate towards it.
+description: "artificial light: fixed WB, hotspot excluded, wide exposure range"
+
+exposure-mode: deflicker
+exposure-tau: 1.5
+max-exposure-gain: 2.0     # beam vs shadow is a huge range
+
+wb-method: shades-of-gray
+wb-p: 5.0
+wb-mode: fixed             # dive lights do not change colour temperature
+wb-tau: 5.0
+max-wb-gain: 2.0
+red-compensation: 0.0      # artificial light already carries red
+
+roi: "center:0.7"
+highlight-exclude: 0.92    # the beam core clips; keep it out of the statistics
+cut-threshold: 0.30        # lights swinging past make shots look more alike
+soft-clip-knee: 0.75       # protect the beam core from posterising
+encoder: x264
+crf: 16
